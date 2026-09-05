@@ -1,0 +1,691 @@
+# ============================================================
+# WEEK 2 PROJECT
+# DATA PREPROCESSING AND FEATURE ENGINEERING
+# TITANIC DATASET
+# ============================================================
+
+# -----------------------------
+# 1. IMPORT LIBRARIES
+# -----------------------------
+
+import pandas as pd
+import numpy as np
+import matplotlib.pyplot as plt
+
+from sklearn.model_selection import train_test_split
+from sklearn.preprocessing import StandardScaler
+from sklearn.feature_selection import SelectKBest, f_classif
+from sklearn.ensemble import RandomForestClassifier
+from sklearn.metrics import accuracy_score, classification_report
+
+
+print("=" * 60)
+print("TITANIC DATA PREPROCESSING & FEATURE ENGINEERING PROJECT")
+print("=" * 60)
+
+
+# ============================================================
+# 2. LOAD DATASET
+# ============================================================
+
+url = "https://raw.githubusercontent.com/datasciencedojo/datasets/master/titanic.csv"
+
+df = pd.read_csv(url)
+
+print("\n1. DATASET LOADED SUCCESSFULLY")
+print("-" * 60)
+print("Original Dataset Shape:", df.shape)
+
+print("\nFirst 5 Rows:")
+print(df.head())
+
+
+# ============================================================
+# 3. DATA UNDERSTANDING
+# ============================================================
+
+print("\n2. DATA UNDERSTANDING")
+print("-" * 60)
+
+print("\nRows and Columns:")
+print(df.shape)
+
+print("\nColumn Names:")
+print(df.columns.tolist())
+
+print("\nData Types:")
+print(df.dtypes)
+
+print("\nDataset Information:")
+df.info()
+
+
+# ============================================================
+# 4. DESCRIPTIVE STATISTICS
+# ============================================================
+
+print("\n3. DESCRIPTIVE STATISTICS")
+print("-" * 60)
+
+print(df.describe())
+
+
+# ============================================================
+# 5. MISSING VALUE ANALYSIS
+# ============================================================
+
+print("\n4. MISSING VALUE ANALYSIS")
+print("-" * 60)
+
+missing_values = df.isnull().sum()
+
+print("Missing Values Before Cleaning:")
+print(missing_values)
+
+
+# Missing-value visualization
+
+missing = missing_values[missing_values > 0]
+
+plt.figure(figsize=(8, 5))
+missing.plot(kind="bar")
+plt.title("Missing Values Before Cleaning")
+plt.xlabel("Columns")
+plt.ylabel("Number of Missing Values")
+plt.xticks(rotation=45)
+plt.tight_layout()
+plt.show()
+
+
+# ============================================================
+# 6. MISSING VALUE TREATMENT
+# ============================================================
+
+print("\n5. MISSING VALUE TREATMENT")
+print("-" * 60)
+
+# Age → Median
+df["Age"] = df["Age"].fillna(
+    df["Age"].median()
+)
+
+# Embarked → Mode
+df["Embarked"] = df["Embarked"].fillna(
+    df["Embarked"].mode()[0]
+)
+
+# Cabin → Remove because it contains many missing values
+df.drop(
+    "Cabin",
+    axis=1,
+    inplace=True
+)
+
+print("Missing values after treatment:")
+print(df.isnull().sum())
+
+
+# ============================================================
+# 7. DUPLICATE RECORD CHECK
+# ============================================================
+
+print("\n6. DUPLICATE RECORD CHECK")
+print("-" * 60)
+
+duplicates_before = df.duplicated().sum()
+
+print(
+    "Duplicate rows before removal:",
+    duplicates_before
+)
+
+df.drop_duplicates(
+    inplace=True
+)
+
+duplicates_after = df.duplicated().sum()
+
+print(
+    "Duplicate rows after removal:",
+    duplicates_after
+)
+
+
+# ============================================================
+# 8. OUTLIER DETECTION
+# ============================================================
+
+print("\n7. OUTLIER DETECTION")
+print("-" * 60)
+
+plt.figure(figsize=(8, 5))
+
+plt.boxplot(df["Fare"])
+
+plt.title(
+    "Fare Distribution Before Outlier Treatment"
+)
+
+plt.ylabel("Fare")
+
+plt.show()
+
+
+# ============================================================
+# 9. IQR OUTLIER CALCULATION
+# ============================================================
+
+print("\n8. IQR OUTLIER CALCULATION")
+print("-" * 60)
+
+Q1 = df["Fare"].quantile(0.25)
+
+Q3 = df["Fare"].quantile(0.75)
+
+IQR = Q3 - Q1
+
+lower_bound = Q1 - 1.5 * IQR
+
+upper_bound = Q3 + 1.5 * IQR
+
+print("Q1:", Q1)
+print("Q3:", Q3)
+print("IQR:", IQR)
+print("Lower Bound:", lower_bound)
+print("Upper Bound:", upper_bound)
+
+
+# ============================================================
+# 10. OUTLIER TREATMENT
+# ============================================================
+
+print("\n9. OUTLIER TREATMENT")
+print("-" * 60)
+
+df["Fare"] = df["Fare"].clip(
+    lower=lower_bound,
+    upper=upper_bound
+)
+
+print("Fare outliers capped successfully.")
+
+
+# Boxplot after treatment
+
+plt.figure(figsize=(8, 5))
+
+plt.boxplot(df["Fare"])
+
+plt.title(
+    "Fare Distribution After Outlier Treatment"
+)
+
+plt.ylabel("Fare")
+
+plt.show()
+
+
+# ============================================================
+# 11. FEATURE ENGINEERING
+# ============================================================
+
+print("\n10. FEATURE ENGINEERING")
+print("-" * 60)
+
+# FamilySize
+
+df["FamilySize"] = (
+    df["SibSp"] +
+    df["Parch"] +
+    1
+)
+
+# IsAlone
+
+df["IsAlone"] = np.where(
+    df["FamilySize"] == 1,
+    1,
+    0
+)
+
+# FamilyCategory
+
+df["FamilyCategory"] = pd.cut(
+    df["FamilySize"],
+    bins=[0, 1, 4, 7, 20],
+    labels=[
+        "Alone",
+        "Small",
+        "Medium",
+        "Large"
+    ]
+)
+
+print(
+    df[
+        [
+            "SibSp",
+            "Parch",
+            "FamilySize",
+            "IsAlone",
+            "FamilyCategory"
+        ]
+    ].head(10)
+)
+
+
+# ============================================================
+# 12. ONE-HOT ENCODING
+# ============================================================
+
+print("\n11. ONE-HOT ENCODING")
+print("-" * 60)
+
+df = pd.get_dummies(
+    df,
+    columns=[
+        "Sex",
+        "Embarked",
+        "FamilyCategory"
+    ],
+    drop_first=True,
+    dtype=int
+)
+
+print("Dataset after encoding:")
+print(df.head())
+
+
+# ============================================================
+# 13. REMOVE UNNECESSARY COLUMNS
+# ============================================================
+
+print("\n12. REMOVING UNNECESSARY COLUMNS")
+print("-" * 60)
+
+columns_to_drop = [
+    "PassengerId",
+    "Name",
+    "Ticket"
+]
+
+df.drop(
+    columns=columns_to_drop,
+    inplace=True
+)
+
+print("Remaining columns:")
+print(df.columns.tolist())
+
+
+# ============================================================
+# 14. CHECK DATA TYPES
+# ============================================================
+
+print("\n13. FINAL DATA TYPES")
+print("-" * 60)
+
+print(df.dtypes)
+
+
+# ============================================================
+# 15. SEPARATE FEATURES AND TARGET
+# ============================================================
+
+print("\n14. SEPARATING FEATURES AND TARGET")
+print("-" * 60)
+
+X = df.drop(
+    "Survived",
+    axis=1
+)
+
+y = df["Survived"]
+
+print("Features Shape:", X.shape)
+
+print("Target Shape:", y.shape)
+
+
+# ============================================================
+# 16. TRAIN-TEST SPLIT
+# ============================================================
+
+print("\n15. TRAIN-TEST SPLIT")
+print("-" * 60)
+
+X_train, X_test, y_train, y_test = train_test_split(
+    X,
+    y,
+    test_size=0.20,
+    random_state=42,
+    stratify=y
+)
+
+print(
+    "Training Data Shape:",
+    X_train.shape
+)
+
+print(
+    "Testing Data Shape:",
+    X_test.shape
+)
+
+print(
+    "Training Target Shape:",
+    y_train.shape
+)
+
+print(
+    "Testing Target Shape:",
+    y_test.shape
+)
+
+
+# ============================================================
+# 17. FEATURE SCALING
+# ============================================================
+
+print("\n16. FEATURE SCALING")
+print("-" * 60)
+
+scaler = StandardScaler()
+
+# Fit ONLY on training data
+X_train_scaled = scaler.fit_transform(
+    X_train
+)
+
+# Apply same scaler to test data
+X_test_scaled = scaler.transform(
+    X_test
+)
+
+# Convert to DataFrames
+
+X_train_scaled = pd.DataFrame(
+    X_train_scaled,
+    columns=X_train.columns,
+    index=X_train.index
+)
+
+X_test_scaled = pd.DataFrame(
+    X_test_scaled,
+    columns=X_test.columns,
+    index=X_test.index
+)
+
+print("Feature scaling completed!")
+
+print("\nScaled Training Data:")
+print(X_train_scaled.head())
+
+
+# ============================================================
+# 18. FEATURE SELECTION
+# ============================================================
+
+print("\n17. FEATURE SELECTION")
+print("-" * 60)
+
+k = min(
+    8,
+    X_train_scaled.shape[1]
+)
+
+selector = SelectKBest(
+    score_func=f_classif,
+    k=k
+)
+
+# Fit selector ONLY on training data
+
+X_train_selected = selector.fit_transform(
+    X_train_scaled,
+    y_train
+)
+
+# Apply selector to test data
+
+X_test_selected = selector.transform(
+    X_test_scaled
+)
+
+# Get selected feature names
+
+selected_features = X_train_scaled.columns[
+    selector.get_support()
+]
+
+print("Selected Features:")
+print(
+    selected_features.tolist()
+)
+
+
+# ============================================================
+# 19. CREATE FINAL TRAINING AND TESTING DATA
+# ============================================================
+
+print("\n18. FINAL ML-READY DATA")
+print("-" * 60)
+
+X_train_final = pd.DataFrame(
+    X_train_selected,
+    columns=selected_features,
+    index=X_train.index
+)
+
+X_test_final = pd.DataFrame(
+    X_test_selected,
+    columns=selected_features,
+    index=X_test.index
+)
+
+print(
+    "Final Training Dataset Shape:",
+    X_train_final.shape
+)
+
+print(
+    "Final Testing Dataset Shape:",
+    X_test_final.shape
+)
+
+print("\nFinal Training Data:")
+print(X_train_final.head())
+
+
+# ============================================================
+# 20. CREATE FINAL DATASET WITH TARGET
+# ============================================================
+
+final_data = X_train_final.copy()
+
+final_data["Survived"] = y_train
+
+print("\nFinal Dataset With Target:")
+print(final_data.head())
+
+print(
+    "\nFinal Dataset Shape:",
+    final_data.shape
+)
+
+
+# ============================================================
+# 21. SAVE PREPROCESSED DATASET
+# ============================================================
+
+print("\n19. SAVING PREPROCESSED DATASET")
+print("-" * 60)
+
+final_data.to_csv(
+    "titanic_preprocessed.csv",
+    index=False
+)
+
+print(
+    "Dataset saved as: titanic_preprocessed.csv"
+)
+
+
+# ============================================================
+# 22. TRAIN MACHINE LEARNING MODEL
+# ============================================================
+
+print("\n20. MACHINE LEARNING MODEL")
+print("-" * 60)
+
+model = RandomForestClassifier(
+    n_estimators=100,
+    random_state=42
+)
+
+model.fit(
+    X_train_final,
+    y_train
+)
+
+print(
+    "Random Forest model trained successfully!"
+)
+
+
+# ============================================================
+# 23. MAKE PREDICTIONS
+# ============================================================
+
+print("\n21. MODEL PREDICTIONS")
+print("-" * 60)
+
+y_pred = model.predict(
+    X_test_final
+)
+
+print("First 20 Predictions:")
+print(y_pred[:20])
+
+
+# ============================================================
+# 24. MODEL EVALUATION
+# ============================================================
+
+print("\n22. MODEL EVALUATION")
+print("-" * 60)
+
+accuracy = accuracy_score(
+    y_test,
+    y_pred
+)
+
+print(
+    "Random Forest Accuracy:",
+    round(accuracy * 100, 2),
+    "%"
+)
+
+print("\nClassification Report:")
+
+print(
+    classification_report(
+        y_test,
+        y_pred
+    )
+)
+
+
+# ============================================================
+# 25. FEATURE IMPORTANCE
+# ============================================================
+
+print("\n23. FEATURE IMPORTANCE")
+print("-" * 60)
+
+importance = pd.DataFrame({
+    "Feature": selected_features,
+    "Importance": model.feature_importances_
+})
+
+importance = importance.sort_values(
+    by="Importance",
+    ascending=False
+)
+
+print(importance)
+
+
+# ============================================================
+# 26. FEATURE IMPORTANCE VISUALIZATION
+# ============================================================
+
+plt.figure(figsize=(10, 6))
+
+plt.bar(
+    importance["Feature"],
+    importance["Importance"]
+)
+
+plt.title(
+    "Selected Feature Importance"
+)
+
+plt.xlabel("Features")
+
+plt.ylabel("Importance")
+
+plt.xticks(
+    rotation=45,
+    ha="right"
+)
+
+plt.tight_layout()
+
+plt.show()
+
+
+# ============================================================
+# 27. FINAL SUMMARY
+# ============================================================
+
+print("\n" + "=" * 60)
+
+print("PROJECT COMPLETED SUCCESSFULLY!")
+
+print("=" * 60)
+
+print("\nOriginal Dataset Shape:")
+print(df.shape)
+
+print("\nSelected Features:")
+print(selected_features.tolist())
+
+print("\nFinal Training Dataset:")
+print(X_train_final.shape)
+
+print("\nFinal Testing Dataset:")
+print(X_test_final.shape)
+
+print(
+    "\nRandom Forest Accuracy:",
+    round(accuracy * 100, 2),
+    "%"
+)
+
+print(
+    "\nOutput File:"
+)
+
+print("titanic_preprocessed.csv")
+
+print("\nComplete preprocessing workflow:")
+print(
+    "Load → Understand → Clean → "
+    "Handle Missing Values → Remove Duplicates → "
+    "Treat Outliers → Feature Engineering → "
+    "Encoding → Train-Test Split → Scaling → "
+    "Feature Selection → Machine Learning"
+)
+
+print("\n" + "=" * 60)
